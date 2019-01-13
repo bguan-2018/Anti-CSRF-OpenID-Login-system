@@ -1,0 +1,262 @@
+<html>
+  <head>
+    <title>Hello, world!</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+    <script type="text/javascript" src="/js/general.js"></script>
+    <script type="text/javascript">
+      $(function() {
+        checkLogin();
+        refreshEventList();
+      });
+      var interval = null;
+
+      function checkLogin() {
+        if (!$.cookie('token')) {
+          window.location.replace('/login');
+        } else {
+          getUser('/getuser');
+        }
+      }
+      /*
+       * This method is for refreshing the event list every time we add or delete an event
+       */
+      function refreshEventList() {
+        getAllEventsJSON('/events').then(({status, data}) => {
+          clearInterval(interval);
+          $('#events').html('');      
+          //Use the *data* argument to change what we see on the page.  
+          let countDownDict = {};      
+          for (i = 0; i < data.length; i++) {
+            //There are better ways, but this is illustrative of the concept:
+            html = '<div class=\'div_event\' id=\'event_' + i + '\'>' +
+                      '<div class=\'event_title\'>' + data[i].title + '</div>' +
+                      '<div>' + data[i].date + '</div>' +
+                      '<div id=\'event_countdown_' + i + '\'></div>' +
+                      '<div><button onclick="removeEvent(\'/event\',' +data[i].id+')">Remove</button></div>' +
+                    '</div>';
+            $(html).appendTo('#events');
+            countDownDict['event_countdown_' + i] = data[i].date;
+          }
+          interval = setInterval(function () {
+              setCountDownTimer(countDownDict);
+          }, 1000);
+        }).catch(({status, data}) => {
+          $('#events').html('ERROR: ' + JSON.stringify(data));
+        });
+      }
+
+      /*
+       *
+       * This sets the countdown timer for all the events, it will search the for the event element with 
+       * the elementId (id)
+       * 
+       * countDownDict: a map of the event html elementId (key) to the event date (value) 
+       */
+      function setCountDownTimer(countDownDict) {
+
+        // Get todays date and time
+        for (var elementId in countDownDict) {
+          var now = new Date().getTime();
+          // Find the distance between now and the count down date
+          var distance = new Date(countDownDict[elementId]).getTime() - now;
+          
+          // Time calculations for days, hours, minutes and seconds
+          var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+          var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+          var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+          
+          // Output the result in an element with id="demo"
+          document.getElementById(elementId).innerHTML = days + "d " + hours + "h "
+          + minutes + "m " + seconds + "s ";
+          
+          // If the count down is over, write some text 
+          if (distance < 0) {
+            document.getElementById(elementId).innerHTML = "EXPIRED";
+          }
+        }
+  
+      }
+
+      /*
+       * This method get all the events from the server as a json 
+       *
+       * url: server url for requesting the json 
+       */
+      function getAllEventsJSON(url) {
+        return new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest(); xhr.open('GET', url);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              if (xhr.response.redirect_url !== undefined) {
+                window.location.replace(xhr.response.redirect_url);  
+              } else {
+                resolve({status: xhr.status, data: xhr.response}); 
+              }
+            } else {
+              reject({status: xhr.status, data: xhr.response}); 
+            }
+          };
+          xhr.onerror = () => {
+            reject({status: xhr.status, data: xhr.response}); 
+          };
+          xhr.send();
+        });
+      }
+      /*
+       * This method sends the new JSON event back to the server and saves it, after that it refreshes the list 
+       *
+       * url: server url for adding the event 
+       */
+      function addEvent(url, elementId) {
+        if (!validateFormField(elementId)) {
+          return;
+        }
+        return new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest(); xhr.open('POST', url);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              alert('Status: ' + xhr.response.status + '\n' + (xhr.response.id ? 'Id: ' + xhr.response.id : ''));
+              refreshEventList();
+              resolve({status: xhr.status, data: xhr.response}); 
+            } else {
+              reject({status: xhr.status, data: xhr.response}); 
+            }
+          };
+          xhr.onerror = () => {
+            reject({status: xhr.status, data: xhr.response}); 
+          };
+          xhr.send(JSON.stringify(getFormJSON(elementId)));
+        });
+      }
+      /*
+       * This method sends the id of the event and sends a request to the server to remove the event based on the id and refreshes
+       * the list on the client
+       *
+       * url: server url for remove the event
+       * id: the event key id that will be used to index the event table and remove the event with the id
+       */
+      function removeEvent(url, id) {
+        return new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest(); xhr.open('DELETE', url + '/' + id);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              alert('Status: ' + xhr.response.status + '\n' + (xhr.response.id ? 'Id: ' + xhr.response.id : ''));
+              refreshEventList();
+              resolve({status: xhr.status, data: xhr.response}); 
+            } else {
+              reject({status: xhr.status, data: xhr.response}); 
+            }
+          };
+          xhr.onerror = () => {
+            reject({status: xhr.status, data: xhr.response}); 
+          };
+          xhr.send();
+        });
+      }
+
+      function logout(url) {
+        return new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest(); xhr.open('POST', url);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              if (xhr.response.redirect_url !== undefined) {
+                window.location.replace(xhr.response.redirect_url);  
+              } else {
+                alert('Status: ' + xhr.response.status + '\n');
+              }             
+            } else {
+              alert('Status: ' + xhr.response.status + '\n');
+            }
+          };
+          xhr.onerror = () => {
+            alert('Status: ' + xhr.response.status + '\n');
+          };
+          xhr.send();
+        });
+      }
+
+      function migrate(url) {
+        return new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest(); xhr.open('POST', url);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              if (xhr.response.redirect_url !== undefined) {
+                window.location.replace(xhr.response.redirect_url);  
+              } else {
+                refreshEventList();
+                alert('Status: ' + xhr.response.status + '\n');
+              }             
+            } else {
+              alert('Status: ' + xhr.response.status + '\n');
+            }
+          };
+          xhr.onerror = () => {
+            alert('Status: ' + xhr.response.status + '\n');
+          };
+          xhr.send();
+        });
+      }
+
+      function getUser(url) {
+        return new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest(); xhr.open('POST', url);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              $('#username').text(xhr.response.username);            
+            } else {
+              alert('Status: ' + xhr.response.status + '\n');
+            }
+          };
+          xhr.onerror = () => {
+            alert('Status: ' + xhr.response.status + '\n');
+          };
+          xhr.send(JSON.stringify({'token': $.cookie('token')}));
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="dropdown" id="user_menu">
+        <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
+          <span id="username"></span>
+          <span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a id="logout_button" onclick="migrate('/migrate')">Migrate</a></li>
+          <li><a id="logout_button" onclick="logout('/logout')">Logout</a></li>
+        </ul>
+      </div>
+      <h1>Events</h1>
+      <form id="new_event" onsubmit="return false;">
+        <div>
+          <label>Title</label>
+          <input type="text" name="title" id="new_title"/>
+        </div>
+        <div>
+          <label>Date</label>
+          <input type="date" name="date" id="new_date"/>
+        </div>
+        <div>
+          <label>Description</label>
+          <textarea name="content" id="new_content"></textarea>
+        </div>
+        <div>
+          <button onclick="addEvent('/event', 'new_event')">submit</button>
+        </div> 
+      </form> 
+      <div class="div_events" id="events"></div>
+    </div>
+  </body>
+</html>

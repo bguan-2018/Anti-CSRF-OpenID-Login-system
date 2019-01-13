@@ -1,0 +1,63 @@
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+    <script type="text/javascript" src="/js/general.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript">
+      function login(url, elementId) {
+        if (!validateFormField(elementId)) {
+          return;
+        }
+        return new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest(); xhr.open('POST', url);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              if (xhr.response.redirect_url !== undefined) {
+                window.location.replace(xhr.response.redirect_url);  
+              } else {
+                alert('Status: ' + xhr.response.status + '\n');
+              }             
+            } else {
+              alert('Status: ' + xhr.response.status + '\n' + (xhr.response.id ? 'Id: ' + xhr.response.id : ''));
+            }
+          };
+          xhr.onerror = () => {
+            alert('Status: ' + xhr.response.status + '\n' + (xhr.response.id ? 'Id: ' + xhr.response.id : ''));
+          };
+          xhr.send(JSON.stringify(getFormJSON(elementId)));
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <h4>Login</h4>
+    <form id="form_login" onsubmit="return false;">
+      <div>
+        <label>User Name</label>
+        <input type="text" name="username" id="user_name"/>
+      </div>
+      <div>
+        <label>Password</label>
+        <input type="password" name="password" id="user_password"/>
+      </div>
+      <div>
+        <a href="/register">Don't have an account?</a>
+        <button onclick="login('/login', 'form_login')">Login</button>
+        <div id="div-google-login" class="btn white darken-4 col s10 m4">
+          <a href="https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={{client_id}}&scope=openid%20email&state={{state}}&nonce={{nonce}}&redirect_uri={{redirect_uri}}" style="text-transform:none">
+            <div id="div-google-icon" class="left">
+             <img width="20px" alt="Google &quot;G&quot; Logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png"/>
+            </div>
+            Login with Google
+          </a>
+        </div>
+      </div> 
+    </form>
+    <form>
+    </form>
+  </body>
+</html>

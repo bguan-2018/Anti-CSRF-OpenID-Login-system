@@ -1,0 +1,54 @@
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+    <script type="text/javascript" src="/js/general.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript">
+      function register(url, elementId) {
+        if (!validateFormField(elementId)) {
+          return;
+        }
+        return new Promise((resolve, reject) => {
+          let xhr = new XMLHttpRequest(); xhr.open('POST', url);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                if (xhr.response.redirect_url !== undefined) {
+                window.location.replace(xhr.response.redirect_url);  
+              } else {
+                alert('Status: ' + xhr.response.status + '\n');
+              }
+            } else {
+              alert('Status: ' + xhr.response.status + '\n' + (xhr.response.id ? 'Id: ' + xhr.response.id : ''));
+            }
+          };
+          xhr.onerror = () => {
+            alert('Status: ' + xhr.response.status + '\n' + (xhr.response.id ? 'Id: ' + xhr.response.id : ''));
+          };
+          xhr.send(JSON.stringify(getFormJSON(elementId)));
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <h4>Register</h4>
+    <form id="form_register" onsubmit="return false;">
+      <div>
+        <label>User Name</label>
+        <input type="text" name="username" id="user_name"/>
+      </div>
+      <div>
+        <label>Password</label>
+        <input type="password" name="password" id="user_password"/>
+      </div>
+      <div>
+        <button onclick="register('/register', 'form_register')">Register</button>
+      </div> 
+    </form>
+    <form>
+    </form>
+  </body>
+</html>
